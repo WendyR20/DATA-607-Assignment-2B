@@ -1,0 +1,322 @@
+---
+title: "Data 607 Assignment 2B"
+author: "Wendy Romero"
+date: "2025-09-07"
+output:
+  html_document:
+    theme: cerulean
+    toc: yes
+    toc_float: yes
+  '': default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+```
+
+
+## Introduction
+
+We will be looking at the penguin_predictions.csv dataset. This dataset contains three data columns. They are: 
+
+-  The **pred_female** which is the model's degree of certainty of it's prediction 
+-  The **pred_class** the predicted sex of the penguin  
+-  The **sex** the actual sex of the penguin
+
+We will use the following libraries 
+
+-  The **tidyverse** library 
+-  The **dplyr** library  
+-  The **knitr** library 
+
+## Reading in Our Data
+
+To start let us read in our data and look at it's summary.
+
+```{r read in data}
+url <-("https://raw.githubusercontent.com/WendyR20/DATA-607-Assignment-2B/refs/heads/main/penguin_predictions.csv")
+data <- read_csv(url)
+
+summary(data)
+```
+
+## Null Error Rate
+
+Let us calculate the null error rate for the dataset. First, we need to find out how many null values exist in the dataset.
+
+```{r check for null values}
+
+# Count Null values for each column
+sapply(data, function(x) sum(is.na(x)))
+
+# Summary table of missing values per column
+null_summary <- data.frame(
+  null_count = sapply(data, function(x) sum(is.na(x))),
+  null_percent = sapply(data, function(x) mean(is.na(x)) * 100)
+)
+
+null_summary
+
+```
+
+We see that there are no null values in the dataset, thus the null error rate is 0%. We avoided having to do any extra calculation (phew)!
+
+## Explanatory Variable Distribution
+Now let's plot the distribution of the explanatory variable for this dataset: the actual sex of the penguins.
+
+## Importance of Null Error rate
+Its is important to know the null error rate, as the null values in a dataset can affect our understanding of a dataset, we may not be able to use certain models if we have null values. Null values can also lead to inaccurate calculations of the median and mean of our data.
+
+```{r explanatory variable plot}
+
+ggplot(data, aes(x = sex)) +
+  geom_bar(fill =  "deepskyblue") +
+  geom_text(stat="count", aes(label=after_stat(count)),vjust=2)
+  labs(title = "Distribution of Actual Sex",
+       x = "Actual Sex",
+       y = "Count") + 
+       theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, vjust = 0.5),
+        axis.title.x = element_text(hjust = 0.5, vjust = 0.5),
+        axis.title.y = element_text(hjust = 0.5, vjust = 0.5))
+```
+
+## Confusion Matrix
+
+Let's practice making a confusion matrix with our data as it is.
+
+
+```{r confusion matrix}
+  #confusion matrix
+  df1 <- data
+  df1 %>% 
+    select(sex, .pred_class) %>%
+    mutate(sex = recode(sex,
+                        'female' = 'TP', 
+                        'male' = 'TN'),
+           .pred_class = recode(.pred_class,
+                                'female' = 'FP', 
+                                'male' = 'TN')) %>%
+    table()
+```
+
+
+## Probability Thresholds 0.2
+
+We are going to analyze the data and determine false positive, true negative, and false negative values based on the .pred_female threshold being 0.2 .pred_female threshold being 0.2 
+
+For that we will first create a new column and assign the values male' or 'female' to new column based on 0.2 threshold.
+
+```{r 0.2 values}
+
+ df2 <- data
+  df2$pred_class_threshold <- NA # Initialize the new column
+  print(df2)
+  
+  
+  df2$pred_class_threshold <- ifelse(df2$.pred_female >= 0.2, "female", "male")
+
+```
+
+
+### Calculations for the 0.2 Probability Threshold
+Later on we will be making a table of the accuracy, precision, recall and F1 scores for the probability thresholds, let's get the calculations for the 0.2 probability threshold done now.
+
+```{r calculations 0.2}
+calculations <- function(df2) { 
+    
+  #Calculating True Positives (TP), True Negatives (TN), False Positives (FP), False Negatives (FN)
+    TP <- sum(df2$sex == 'female' & df2$pred_class_threshold == 'female')
+    TN <- sum(df2$sex == 'male' & df2$pred_class_threshold == 'male')
+    FP <- sum(df2$sex == 'male' & df2$pred_class_threshold == 'female')
+    FN <- sum(df2$sex == 'female' & df2$pred_class_threshold == 'male')
+    
+    #Calculating accuracy
+    accuracy_02 <- (TP + TN) / (TP + FP + TN + FN)
+    
+    #Calculating precision
+    precision_02 <- (TP) / (TP + FP)
+    
+    #Calculating recall
+    recall_02 <- (TP) / (TP + FN)
+    
+    #Calculating F1 score
+    f1_02 <- (2 * precision_02 * recall_02) / (precision_02 + recall_02)
+    
+    
+    result_02 <- c(accuracy_02, precision_02, recall_02, f1_02)
+    result_02
+  }
+  scores_02 <-calculations(df2)
+  print(scores_02)
+```
+
+### Confusion Matrix for 0.2 Threshold
+
+Let's make a confusion matrix based on the 0.2 Threshold
+
+```{r confusion matrix 0.2}
+  df2 %>% 
+    select(sex, pred_class_threshold) %>%
+    mutate(sex = recode(sex,
+                        'female' = 'TP', 
+                        'male' = 'TN'),
+           pred_class_threshold = recode(pred_class_threshold,
+                                          'female' = 'FP', 
+                                          'male' = 'FN')) %>%
+    table() 
+
+```
+
+
+
+## Probability Threshold 0.5 
+
+```{r 0.5 values}
+df2$pred_class_threshold <- ifelse(df2$.pred_female >= 0.5, "female", "male")
+print(df2)
+```
+
+### Calculations for the 0.5 Probability Threshold
+Later on we will be making a table of the accuracy, precision, recall and F1 scores for the probability thresholds, let's get the calculations for the 0.5 probability threshold done now.
+
+```{r calculations 0.5}
+calculations <- function(df2) { 
+  
+  #Calculating True Positives (TP), True Negatives (TN), False Positives (FP), False Negatives (FN)
+  TP <- sum(df2$sex == 'female' & df2$pred_class_threshold == 'female')
+  TN <- sum(df2$sex == 'male' & df2$pred_class_threshold == 'male')
+  FP <- sum(df2$sex == 'male' & df2$pred_class_threshold == 'female')
+  FN <- sum(df2$sex == 'female' & df2$pred_class_threshold == 'male')
+  
+  #Calculating accuracy
+  accuracy_05 <- (TP + TN) / (TP + FP + TN + FN)
+  
+  #Calculating precision
+  precision_05 <- (TP) / (TP + FP)
+  
+  #Calculating recall
+  recall_05 <- (TP) / (TP + FN)
+  
+  #Calculating F1 score
+  f1_05 <- (2 * precision_05 * recall_05) / (precision_05 + recall_05)
+  
+  result_05 <- c(accuracy_05, precision_05, recall_05, f1_05)
+  result_05
+}
+scores_05 <-calculations(df2)
+print(scores_05)
+```
+
+### Confusion Matrix for 0.5 Threshold
+
+Let's make a confusion matrix based on the 0.5 Threshold
+
+```{r confusion matrix 0.5}
+df2 %>% 
+  select(sex, pred_class_threshold) %>%
+  mutate(sex = recode(sex,
+                      'female' = 'TP', 
+                      'male' = 'TN'),
+         pred_class_threshold = recode(pred_class_threshold,
+                                        'female' = 'FP', 
+                                        'male' = 'FN')) %>%
+  table()
+```
+
+
+## Probability Threshold 0.8
+
+```{r 0.8 values}
+df2$pred_class_threshold <- ifelse(df2$.pred_female >= 0.8, "female", "male")
+print(df2)
+```
+
+### Calculations for the 0.8 Probability Threshold
+Later on we will be making a table of the accuracy, precision, recall and F1 scores for the probability thresholds, let's get the calculations for the 0.8 probability threshold done now.
+
+```{r calculations 0.8}
+calculations <- function(df2) { 
+  
+  #Calculating True Positives (TP), True Negatives (TN), False Positives (FP), False Negatives (FN)
+  TP <- sum(df2$sex == 'female' & df2$pred_class_threshold == 'female')
+  TN <- sum(df2$sex == 'male' & df2$pred_class_threshold == 'male')
+  FP <- sum(df2$sex == 'male' & df2$pred_class_threshold == 'female')
+  FN <- sum(df2$sex == 'female' & df2$pred_class_threshold == 'male')
+  
+  #Calculating accuracy
+  accuracy_08 <- (TP + TN) / (TP + FP + TN + FN)
+  
+  #Calculating precision
+  precision_08 <- (TP) / (TP + FP)
+  
+  #Calculating recall
+  recall_08 <- (TP) / (TP + FN)
+  
+  #Calculating F1 score
+  f1_08 <- (2 * precision_08 * recall_08) / (precision_08 + recall_08)
+  
+  result_08 <- c(accuracy_08, precision_08, recall_08, f1_08)
+  result_08 # The last evaluated expression is returned
+  
+  
+  #return(list(accuracy_08, precision_08,
+   #           recall_08, f1_08))
+}
+scores_08 <-calculations(df2)
+print(scores_08)
+```
+
+### Confusion Matrix for 0.8 Threshold
+
+Let's make a confusion matrix based on the 0.8 Threshold
+
+```{r confusion matrix 0.8}
+df2 %>% 
+  select(sex, pred_class_threshold) %>%
+  mutate(sex = recode(sex,
+                      'female' = 'TP', 
+                      'male' = 'TN'),
+         pred_class_threshold = recode(pred_class_threshold,
+                                        'female' = 'FP', 
+                                        'male' = 'FN')) %>%
+  table()
+```
+
+## Table for Accuracy, Precision, Recall, and F1 scores
+
+As mentioned earlier we will be making a table of the accuracy, precision, recall and F1 scores for all three probability thresholds.
+
+```{r score dataframe}
+labels <- c("Accuracy", "Precision", "Recall", "F1 Score")
+
+score_df <- data.frame(
+  Performace_Metrics = labels,
+  Threshold_02 = scores_02,
+  Threshold_05 = scores_05,
+  Threshold_08 = scores_08
+)
+```
+
+```{r print table}
+    score_df %>%
+      kable(format = "html", caption = "Performance Metrics Table")  %>% 
+      kable_styling() %>% 
+        column_spec(1, width = "18em")
+
+```
+
+## Probability Threshold Use Case
+
+a) We might want a low probability threshold like 0.2 if it's very important that do not miss any female penguins, i.e. it is better for us to have too many false positives than any false negatives. If say there were a disease that primarily affects female penguins, we would want to lower our threshold.
+
+b) On the other hand we may want a very high probability threshold if we wanted to avoid as many false positives as possible, say should we be trying to create a new space for the female penguins away from the male penguins, we would want less false positives and want to make sure we have a model that captures the male penguins well.
+
+
+
+
